@@ -38,3 +38,6 @@ __my_map.on('mousemove', (e) => {
   }
 });
 """
+
+CHROMEDRIVER_PATH = "/Users/borangoksel/Downloads/chromedriver-mac-arm64/chromedriver"  # your chromedriver path
+
