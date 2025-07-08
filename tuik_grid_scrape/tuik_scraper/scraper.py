@@ -4,8 +4,10 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
-from .js_injections import MAP_HOOK, HOVER_LISTENER, CHROMEDRIVER_PATH
 from .utils import save_to_csv
+from selenium.webdriver.common.by import By
+
+from .js_injections import MAP_HOOK, HOVER_LISTENER, CHROMEDRIVER_PATH
 
 def init_driver():
     options = Options()
@@ -26,6 +28,16 @@ def hook_map(driver):
     if not exists:
         raise RuntimeError("❌ Map object was not hooked. Please make sure the hook worked.")
     print("✅ Map object available.")
+    click_to_button(driver,button="btn-nuts-grid")
+    zoom_to_area(driver,distance=10)
+
+def click_to_button(driver,button):
+    button = driver.find_element(By.ID, button)
+    button.click()
+
+def zoom_to_area(driver,lon=28.97,lat=41.01,distance=9):
+    driver.execute_script(f'window.__my_map.jumpTo({{ center: [{lon}, {lat}], zoom: {distance} }});')
+    print('Zoomed in')
 
 def start_hover_capture(driver, duration=30):
     driver.execute_script(HOVER_LISTENER)
