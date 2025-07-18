@@ -41,6 +41,7 @@ def zoom_to_area(driver,lon=28.97,lat=41.01,distance=9):
 
 def start_hover_capture(driver, duration=30):
     driver.execute_script(HOVER_LISTENER)
+    zoom_to_area(driver,lon=39.2986305,lat=44.4216184,distance = 9)
     print("🟢 Hover listener injected. Hover over the map...")
     time.sleep(duration)
     while True:
@@ -49,6 +50,10 @@ def start_hover_capture(driver, duration=30):
             duration +=30
             time.sleep(duration)
         elif continue_hovering =='no':
+            zoom_to_area(driver,39.941791163745386,32.75899890208769,distance=2)
+            zoom_to_area(driver,39.950396336476224,32.7621631758702,distance=2)
+            zoom_to_area(driver, 39.95629988067327,32.77659419321532,distance=2)
+            zoom_to_area(driver, 39.96488521932998,32.77976992871405,distance=2)
             break
         else:
             print('Wrong input')
