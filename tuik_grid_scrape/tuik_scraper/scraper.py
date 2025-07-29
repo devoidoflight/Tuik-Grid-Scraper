@@ -1,5 +1,7 @@
 import time
 import pandas as pd
+import subprocess
+import pyautogui  
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
@@ -7,13 +9,19 @@ from webdriver_manager.chrome import ChromeDriverManager
 from .utils import save_to_csv
 from selenium.webdriver.common.by import By
 
-from .js_injections import MAP_HOOK, HOVER_LISTENER, CHROMEDRIVER_PATH
+from .js_injections import MAP_HOOK, CAPTURE_VISIBLE_GRID, CHROMEDRIVER_PATH
+from .coordinate_generator import load_geojson, extract_polygons, generate_grid
 
 def init_driver():
     options = Options()
     options.add_argument("--start-maximized")
-    driver = webdriver.Chrome(service=Service(CHROMEDRIVER_PATH), options=options) # Define the driver
+    driver = webdriver.Chrome(service=Service(CHROMEDRIVER_PATH), options=options)
+    
+    # Ensure the browser is front and visible
+    driver.set_window_position(0, 0)
+    driver.set_window_size(1400, 1000)
     return driver
+
 
 def hook_map(driver):
     driver.get("https://cip.tuik.gov.tr/") # Open the desired website
@@ -29,48 +37,94 @@ def hook_map(driver):
         raise RuntimeError("❌ Map object was not hooked. Please make sure the hook worked.")
     print("✅ Map object available.")
     click_to_button(driver,button="btn-nuts-grid")
-    zoom_to_area(driver,distance=10)
 
 def click_to_button(driver,button):
     button = driver.find_element(By.ID, button)
     button.click()
 
-def zoom_to_area(driver,lon=28.97,lat=41.01,distance=9):
+
+def zoom_to_area(driver, lon, lat, distance=9):
+    # 1. Bring Chrome to front (macOS only)
+    subprocess.run([
+        "osascript", "-e",
+        'tell application "Google Chrome" to activate'
+    ])
+
+    time.sleep(0.5)  # Let browser come forward
+
+    # 2. Zoom map
     driver.execute_script(f'window.__my_map.jumpTo({{ center: [{lon}, {lat}], zoom: {distance} }});')
-    print('Zoomed in')
+    time.sleep(1.5)
 
-def start_hover_capture(driver, duration=30):
-    driver.execute_script(HOVER_LISTENER)
-    zoom_to_area(driver,lon=39.2986305,lat=44.4216184,distance = 9)
-    print("🟢 Hover listener injected. Hover over the map...")
-    time.sleep(duration)
-    while True:
-        continue_hovering = input("Do you want to continue hovering? (yes/no)").strip().lower()
-        if continue_hovering =='yes':
-            duration +=30
-            time.sleep(duration)
-        elif continue_hovering =='no':
-            zoom_to_area(driver,39.941791163745386,32.75899890208769,distance=2)
-            zoom_to_area(driver,39.950396336476224,32.7621631758702,distance=2)
-            zoom_to_area(driver, 39.95629988067327,32.77659419321532,distance=2)
-            zoom_to_area(driver, 39.96488521932998,32.77976992871405,distance=2)
-            break
-        else:
-            print('Wrong input')
-            continue
+    # 3. Force paint
+    driver.execute_script("window.scrollTo(0, 0);")
+
+    # 4. Click to center of screen to trigger focus/render
+    screen_width, screen_height = pyautogui.size()
+    pyautogui.click(screen_width // 2, screen_height // 2)
+
+    print(f'🔍 Zoomed to [{lon}, {lat}] at zoom level {distance}')
+
+
+def start_grid_capture(driver, coords, zoom=10, delay=3):
+   
+    print("🟢 Grid capture starting.")
+
+    all_data = []
+    seen_ids = set()
+
+    for i, (lon, lat) in enumerate(coords):
     
-    return driver.execute_script("return window.__hoveredFeatures || [];")
+        print(f"📍 Moving to square {i+1}/{len(coords)}: ({lon}, {lat})")
+        zoom_to_area(driver, lon=lon, lat=lat, distance=zoom)
+        time.sleep(delay)
+        driver.execute_script(CAPTURE_VISIBLE_GRID)
+        data = driver.execute_script("return window.__visibleGrids || [];")
+        new_data = [item for item in data if item['id'] not in seen_ids]
+        all_data.extend(new_data)
 
-def scrape_tuik(duration=60, output_path="//Users/borangoksel/Documents/GitHub/tuik_grid_scraper/tuik_grid_scrape/data/tuik_hover_data.csv"):
+        # Prevent duplicates
+        for item in new_data:
+            seen_ids.add(item["id"])
+
+        print(f"✅ Captured {len(new_data)} new grids (Total: {len(all_data)})")
+
+    return all_data
+
+
+def scrape_tuik(output_path="//Users/borangoksel/Documents/GitHub/tuik_grid_scraper/tuik_grid_scrape/data/tuik_grid_data.csv"):
     driver = init_driver()
     try:
         hook_map(driver)
-        data = start_hover_capture(driver, duration=duration)
+
+           # Load GeoJSON and process data
+        features = load_geojson('/Users/borangoksel/Downloads/turkey-admin-level-4.geojson', 'İstanbul')
+        polygons = extract_polygons(features)
+        red_points = [generate_grid(polygons, 3000)]  # Unpack both
+
+        for coords in red_points:
+            data = start_grid_capture(driver,coords=coords,zoom=10.5, delay=0)
+
+            if data:
+                print(f"📦 Saved {len(data)} grid squares.")
+                save_to_csv(data, output_path)
+            else:
+                print("⚠️ No data captured.")
+
+        #coords = [
+        #    (28.90, 41.01)
+        #    # 🧠 You can generate more with a grid generator later
+        #]
+
+        #data = start_grid_capture(driver, coords=coords, zoom=10.5, delay=3)
+
     finally:
         driver.quit()
 
-    if data:
-        print(f"✅ Retrieved {len(data)} items.")
-        save_to_csv(data, output_path)
-    else:
-        print("⚠️ No data collected.")
+    #if data:
+    #    print(f"📦 Saved {len(data)} grid squares.")
+    #    save_to_csv(data, output_path)
+    #else:
+    #    print("⚠️ No data captured.")
+
+
