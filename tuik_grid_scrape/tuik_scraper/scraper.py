@@ -103,7 +103,8 @@ def scrape_tuik(output_path="//Users/borangoksel/Documents/GitHub/tuik_grid_scra
         red_points = [generate_grid(polygons, 3000)]  # Unpack both
 
         for coords in red_points:
-            data = start_grid_capture(driver,coords=coords,zoom=10.5, delay=0)
+            data = start_grid_capture(driver,coords=coords,zoom=10.5, delay=0
+                                      )
 
             if data:
                 print(f"📦 Saved {len(data)} grid squares.")
