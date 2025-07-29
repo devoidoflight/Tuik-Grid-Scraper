@@ -39,5 +39,29 @@ __my_map.on('mousemove', (e) => {
 });
 """
 
+CAPTURE_VISIBLE_GRID = """
+window.__visibleGrids = [];
+
+const allFeatures = window.__my_map.queryRenderedFeatures({ layers: ['grid_katmani'] });
+const seenIds = new Set();
+
+for (const f of allFeatures) {
+  const props = f.properties;
+  const id = props.gridid || JSON.stringify(f.geometry.coordinates);
+
+  if (!seenIds.has(id)) {
+    seenIds.add(id);
+    window.__visibleGrids.push({
+      id: id,
+      timestamp: Date.now(),
+      coordinates: f.geometry.coordinates,
+      properties: props
+    });
+  }
+}
+
+console.log(`✅ Captured ${window.__visibleGrids.length} visible grid squares.`);
+"""
+
 CHROMEDRIVER_PATH = "/Users/borangoksel/Downloads/chromedriver-mac-arm64/chromedriver"  # your chromedriver path
 
