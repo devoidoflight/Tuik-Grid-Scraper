@@ -116,20 +116,7 @@ def scrape_tuik(output_path="//Users/borangoksel/Documents/GitHub/tuik_grid_scra
             else:
                 print("⚠️ No data captured.")
 
-        #coords = [
-        #    (28.90, 41.01)
-        #    # 🧠 You can generate more with a grid generator later
-        #]
-
-        #data = start_grid_capture(driver, coords=coords, zoom=10.5, delay=3)
-
     finally:
         driver.quit()
-
-    #if data:
-    #    print(f"📦 Saved {len(data)} grid squares.")
-    #    save_to_csv(data, output_path)
-    #else:
-    #    print("⚠️ No data captured.")
 
 
