@@ -50,11 +50,11 @@ def zoom_to_area(driver, lon, lat, distance=9):
         'tell application "Google Chrome" to activate'
     ])
 
-    time.sleep(0.5)  # Let browser come forward
+    time.sleep(0.05)  # Let browser come forward
 
     # 2. Zoom map
     driver.execute_script(f'window.__my_map.jumpTo({{ center: [{lon}, {lat}], zoom: {distance} }});')
-    time.sleep(1.5)
+    time.sleep(0.05)
 
     # 3. Force paint
     driver.execute_script("window.scrollTo(0, 0);")
@@ -80,7 +80,11 @@ def start_grid_capture(driver, coords, zoom=10, delay=3):
         time.sleep(delay)
         driver.execute_script(CAPTURE_VISIBLE_GRID)
         data = driver.execute_script("return window.__visibleGrids || [];")
-        new_data = [item for item in data if item['id'] not in seen_ids]
+        new_data = [
+    {**item, 'lon': lon, 'lat': lat}
+    for item in data
+    if item['id'] not in seen_ids
+]
         all_data.extend(new_data)
 
         # Prevent duplicates
@@ -98,7 +102,7 @@ def scrape_tuik(output_path="//Users/borangoksel/Documents/GitHub/tuik_grid_scra
         hook_map(driver)
 
            # Load GeoJSON and process data
-        features = load_geojson('/Users/borangoksel/Downloads/turkey-admin-level-4.geojson', 'İstanbul')
+        features = load_geojson('/Users/borangoksel/Downloads/turkey-admin-level-4.geojson', 'Yalova')
         polygons = extract_polygons(features)
         red_points = [generate_grid(polygons, 3000)]  # Unpack both
 
