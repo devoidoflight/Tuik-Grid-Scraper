@@ -96,13 +96,13 @@ def start_grid_capture(driver, coords, zoom=10, delay=3):
     return all_data
 
 
-def scrape_tuik(output_path="//Users/borangoksel/Documents/GitHub/tuik_grid_scraper/tuik_grid_scrape/data/tuik_grid_data.csv"):
+def scrape_tuik(il, output_path="//Users/borangoksel/Documents/GitHub/tuik_grid_scraper/tuik_grid_scrape/data/tuik_grid_data.csv"):
     driver = init_driver()
     try:
         hook_map(driver)
 
            # Load GeoJSON and process data
-        features = load_geojson('/Users/borangoksel/Downloads/turkey-admin-level-4.geojson', 'Yalova')
+        features = load_geojson('/Users/borangoksel/Downloads/turkey-admin-level-4.geojson', il)
         polygons = extract_polygons(features)
         red_points = [generate_grid(polygons, 3000)]  # Unpack both
 
