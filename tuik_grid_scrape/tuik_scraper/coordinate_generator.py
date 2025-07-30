@@ -5,13 +5,18 @@ from shapely.geometry import Polygon, Point
 def load_geojson(filepath, il):
     """
     Opens up the source file and extracts the features for given district
+    File source: https://github.com/izzetkalic/geojsons-of-turkey
     features: properties,id,name,geometry,geometry_type
     """
     with open(filepath, 'r', encoding='utf-8') as file:
         data = json.load(file)
     return [feature for feature in data["features"] if feature["properties"].get("name") == il] 
 
+# Prepare polygons for systematic sampling
 def extract_polygons(features):
+    """
+    Prepare polygons for systematic sampling
+    """
     polygons = []
     for feature in features:
         geometry_type = feature["geometry"].get("type")  # Options: Polygon, MultiPolygon
