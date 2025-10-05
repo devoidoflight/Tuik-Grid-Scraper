@@ -104,13 +104,18 @@ def start_grid_capture(driver, coords, zoom=9, delay=3):
     return all_data
 
 
-def scrape_tuik(il, output_path=f"{BASE_DIR}/data/tuik_grid_data.csv"):
+def scrape_tuik(il, output_path=f"{BASE_DIR}/data/tuik_grid_data_tr.csv"):
     driver = init_driver()
     try:
         hook_map(driver)
 
-           # Load GeoJSON and process data
-        features = load_geojson(f'{BASE_DIR}/resources/turkey-admin-level-4.geojson', il)
+        # Load GeoJSON and process data
+        if il[0] == 'Türkiye':
+            features = load_geojson(f'{BASE_DIR}/resources/turkey-admin-level-2.geojson', il[0])
+        else:
+            features = []
+            for i in il:
+                features.extend(load_geojson(f'{BASE_DIR}/resources/turkey-admin-level-4.geojson', i))
         polygons = extract_polygons(features)
         red_points = [generate_grid(polygons, 3000)]  # Unpack both
 

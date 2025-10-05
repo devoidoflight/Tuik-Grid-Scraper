@@ -8,7 +8,8 @@ from tuik_scraper.scraper import scrape_tuik
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run TUİK scraper for a specific il (province).")
-    parser.add_argument("--il", type=str, required=True, help="Name of the province (e.g., Yalova)")
+    parser.add_argument("--il", type=str, nargs="+", required=True, help="Name of the province (e.g., Yalova)")
+    #parser.add_argument("-tr",type=str,required=False, help="Scrape the whole country")
 
     args = parser.parse_args()
 
