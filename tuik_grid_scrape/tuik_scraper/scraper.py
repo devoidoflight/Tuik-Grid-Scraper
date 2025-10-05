@@ -1,4 +1,5 @@
 import time
+import datetime
 import pandas as pd
 import subprocess
 import pyautogui  
@@ -8,14 +9,19 @@ from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
 from .utils import save_to_csv
 from selenium.webdriver.common.by import By
+from pathlib import Path
+
 
 from .js_injections import MAP_HOOK, CAPTURE_VISIBLE_GRID, CHROMEDRIVER_PATH
 from .coordinate_generator import load_geojson, extract_polygons, generate_grid
 
+BASE_DIR = Path.cwd().resolve()
+
+
 def init_driver():
     options = Options()
     options.add_argument("--start-maximized")
-    driver = webdriver.Chrome(service=Service(CHROMEDRIVER_PATH), options=options)
+    driver = webdriver.Chrome(service=Service(f'{BASE_DIR}/resources/chromedriver-mac-arm64/chromedriver'), options=options)
     
     # Ensure the browser is front and visible
     driver.set_window_position(0, 0)
@@ -28,6 +34,7 @@ def hook_map(driver):
     time.sleep(5)
     driver.execute_script(MAP_HOOK) # execute map hook script on console
     print("✅ Hook injection sent.")
+    print(BASE_DIR)
     print("Add breakpoint to var t = i.map.queryRenderedFeatures(e.point, {layers: ['grid_katmani']")
     print("Then run window.__my_map = i.map; command on console")
     input("👉 Please open DevTools > Console and confirm map is hooked (you should see '✅ Hooked map instance'). Then press Enter to continue...")
@@ -66,7 +73,7 @@ def zoom_to_area(driver, lon, lat, distance=9):
     print(f'🔍 Zoomed to [{lon}, {lat}] at zoom level {distance}')
 
 
-def start_grid_capture(driver, coords, zoom=10, delay=3):
+def start_grid_capture(driver, coords, zoom=9, delay=3):
    
     print("🟢 Grid capture starting.")
 
@@ -76,6 +83,7 @@ def start_grid_capture(driver, coords, zoom=10, delay=3):
     for i, (lon, lat) in enumerate(coords):
     
         print(f"📍 Moving to square {i+1}/{len(coords)}: ({lon}, {lat})")
+        print(f'Current time is: {datetime.datetime.now()}')
         zoom_to_area(driver, lon=lon, lat=lat, distance=zoom)
         time.sleep(delay)
         driver.execute_script(CAPTURE_VISIBLE_GRID)
@@ -96,18 +104,18 @@ def start_grid_capture(driver, coords, zoom=10, delay=3):
     return all_data
 
 
-def scrape_tuik(il, output_path="//Users/borangoksel/Documents/GitHub/tuik_grid_scraper/tuik_grid_scrape/data/tuik_grid_data.csv"):
+def scrape_tuik(il, output_path=f"{BASE_DIR}/data/tuik_grid_data.csv"):
     driver = init_driver()
     try:
         hook_map(driver)
 
            # Load GeoJSON and process data
-        features = load_geojson('/Users/borangoksel/Downloads/turkey-admin-level-4.geojson', il)
+        features = load_geojson(f'{BASE_DIR}/resources/turkey-admin-level-4.geojson', il)
         polygons = extract_polygons(features)
         red_points = [generate_grid(polygons, 3000)]  # Unpack both
 
         for coords in red_points:
-            data = start_grid_capture(driver,coords=coords,zoom=10.5, delay=0
+            data = start_grid_capture(driver,coords=coords,zoom=11, delay=0
                                       )
 
             if data:
