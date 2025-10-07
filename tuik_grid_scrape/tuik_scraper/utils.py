@@ -1,48 +1,60 @@
 import pandas as pd
 import os
+from pathlib import Path
 
-import pandas as pd
-import os
-
-import pandas as pd
-import os
 
 def save_to_csv(data, path):
+    """
+    Appends to CSV if exists; creates otherwise.
+    Deduplicates by 'id' (keeps first occurrence).
+    """
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
     rows = []
     for item in data:
+        # coords_to_wkt should return WKT string for geometry
         item['coordinates'] = coords_to_wkt(item['coordinates'])
         flat = {
             'id': item['id'],
             'timestamp': item['timestamp'],
             'geometry': item['coordinates'],
-            'lon_lat': f"POINT({item.get('lon')} {item.get('lat')})"
+            'lon_lat': f"POINT({item.get('lon')} {item.get('lat')})",
         }
-        flat.update(item['properties'])
+        # include all properties (make sure it's a dict)
+        props = item.get('properties', {})
+        if isinstance(props, dict):
+            flat.update(props)
         rows.append(flat)
 
     new_df = pd.DataFrame(rows)
 
-    if not os.path.exists(path):
-        new_df.to_csv(path, index=False)
+    if not path.exists():
+        new_df.to_csv(path, index=False, encoding='utf-8')
         print(f"✅ Created and saved {len(new_df)} rows to {path}")
-    else:
-        try:
-            existing_df = pd.read_csv(path, dtype=str)
-        except Exception as e:
-            print(f"❌ Failed to read existing CSV: {e}")
-            return
+        return
 
-        # Combine and deduplicate by 'id'
-        combined_df = pd.concat([existing_df, new_df], ignore_index=True)
-        before = len(combined_df)
-        combined_df = combined_df.drop_duplicates(subset='id')  # Deduplicate by ID only
+    # Merge/dedupe
+    try:
+        existing_df = pd.read_csv(path, dtype=str)  # keep types stable for concat
+    except Exception as e:
+        print(f"❌ Failed to read existing CSV: {e}")
+        return
 
-        # Reindex to keep column consistency
-        combined_df = combined_df.reindex(sorted(combined_df.columns), axis=1)
+    # Cast new_df 'id' to str as well to match dtype
+    if 'id' in new_df.columns:
+        new_df['id'] = new_df['id'].astype(str)
 
-        combined_df.to_csv(path, index=False)
-        print(f"🧹 Merged, deduplicated ({before - len(combined_df)} duplicates removed) → {len(combined_df)} total rows")
+    combined_df = pd.concat([existing_df, new_df], ignore_index=True)
+    before = len(combined_df)
+    combined_df = combined_df.drop_duplicates(subset='id', keep='first')
 
+    # Keep a stable column order: existing + any new columns at the end
+    cols = list(existing_df.columns) + [c for c in combined_df.columns if c not in existing_df.columns]
+    combined_df = combined_df.reindex(columns=cols)
+
+    combined_df.to_csv(path, index=False, encoding='utf-8')
+    print(f"🧹 Merged, deduplicated ({before - len(combined_df)} removed) → {len(combined_df)} total rows")
 
 
 

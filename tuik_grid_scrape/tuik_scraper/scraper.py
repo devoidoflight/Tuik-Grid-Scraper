@@ -1,7 +1,7 @@
 import time
 import datetime
 import pandas as pd
-import subprocess
+import subprocess, platform
 import pyautogui  
 import numpy as np
 from selenium import webdriver
@@ -21,12 +21,19 @@ BASE_DIR = Path.cwd().resolve()
 
 def init_driver():
     options = Options()
-    options.add_argument("--start-maximized")
-    driver = webdriver.Chrome(service=Service(f'{BASE_DIR}/resources/chromedriver-mac-arm64/chromedriver'), options=options)
-    
-    # Ensure the browser is front and visible
-    driver.set_window_position(0, 0)
-    driver.set_window_size(1400, 1000)
+    options.add_argument("--start-maximized")  # visible, not headless
+
+    # ✅ Let Selenium auto-resolve the correct ChromeDriver for the OS/Chrome
+    driver = webdriver.Chrome(options=options)
+
+    # Keep your positioning if you want a fixed window size/position
+    try:
+        driver.set_window_position(0, 0)
+        driver.set_window_size(1400, 1000)
+    except Exception:
+        # Some platforms ignore manual sizing after start-maximized; safe to skip
+        pass
+
     return driver
 
 
@@ -52,24 +59,49 @@ def click_to_button(driver,button):
 
 
 def zoom_to_area(driver, lon, lat, distance=9):
-    # 1. Bring Chrome to front (macOS only)
-    subprocess.run([
-        "osascript", "-e",
-        'tell application "Google Chrome" to activate'
-    ])
+    # 1) Bring Chrome to front (macOS only). Skip on Windows/Linux.
+    if platform.system() == "Darwin":
+        try:
+            subprocess.run(
+                ["osascript", "-e", 'tell application "Google Chrome" to activate'],
+                check=False
+            )
+            time.sleep(0.05)  # Let browser come forward
+        except FileNotFoundError:
+            # osascript not found (e.g., headless mac or no AppleScript); ignore
+            pass
+    else:
+        # Cross-platform, Selenium-only focus (safe fallback)
+        try:
+            driver.switch_to.window(driver.current_window_handle)
+            driver.maximize_window()
+        except Exception:
+            pass
 
-    time.sleep(0.05)  # Let browser come forward
-
-    # 2. Zoom map
-    driver.execute_script(f'window.__my_map.jumpTo({{ center: [{lon}, {lat}], zoom: {distance} }});')
+    # 2) Zoom map
+    driver.execute_script(
+        f'window.__my_map.jumpTo({{ center: [{lon}, {lat}], zoom: {distance} }});'
+    )
     time.sleep(0.05)
 
-    # 3. Force paint
-    driver.execute_script("window.scrollTo(0, 0);")
+    # 3) Force paint/focus via JS (works on all OSes; avoids OS-level clicks)
+    driver.execute_script("""
+        if (window.__my_map) {
+            try { window.__my_map.resize(); } catch(e) {}
+            try { window.__my_map.triggerRepaint && window.__my_map.triggerRepaint(); } catch(e) {}
+            try {
+                const c = window.__my_map.getCanvas && window.__my_map.getCanvas();
+                if (c && c.focus) c.focus();
+            } catch(e) {}
+        }
+        window.scrollTo(0, 0);
+    """)
 
-    # 4. Click to center of screen to trigger focus/render
-    screen_width, screen_height = pyautogui.size()
-    pyautogui.click(screen_width // 2, screen_height // 2)
+    # (Optional) If you still want a physical click on macOS only:
+    # if platform.system() == "Darwin":
+    #     import pyautogui
+    #     sw, sh = pyautogui.size()
+    #     pyautogui.click(sw // 2, sh // 2)
 
     print(f'🔍 Zoomed to [{lon}, {lat}] at zoom level {distance}')
 
@@ -107,41 +139,42 @@ def scrape_tuik(il, output_path=f"{BASE_DIR}/data/tuik_grid_data_tr.csv"):
     try:
         hook_map(driver)
 
+        # Normalize to Path and ensure folder exists
+        output_path = Path(output_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
         # Load GeoJSON and process data
         if il[0] == 'Türkiye':
             features = load_geojson(f'{BASE_DIR}/resources/turkey-admin-level-2.geojson', il[0])
         else:
             features = []
-            for i in il:
-                features.extend(load_geojson(f'{BASE_DIR}/resources/turkey-admin-level-4.geojson', i))
+            for city in il:
+                features.extend(load_geojson(f'{BASE_DIR}/resources/turkey-admin-level-4.geojson', city))
         polygons = extract_polygons(features)
-        red_points = [generate_grid(polygons, 3000)]  # Unpack both
-        seen_ids = pd.read_csv(output_path)
-        
-        # Continue where you left off
-        if Path(output_path):
-            existing_data = pd.read_csv(output_path) 
-            existing_data = existing_data["lon_lat"].to_list()
-            for i in range(len(existing_data)):
-                existing_data[i] = existing_data[i].replace('(', '').replace(')', '').replace('POINT','').replace(' ',',').split(',')
+        red_points = [generate_grid(polygons, 6000)]  # list[list[(lon, lat)]]
 
-            tupled_data = []
-            for i in existing_data:
-                try:
-                    tupled_data.append((np.float64(i[0]),np.float64(i[1])) )
-                except ValueError:
-                    print(f'Error value:{i}')
-            red_points = [[item for item in red_points[0] if item not in tupled_data]]
+        # ---- resume logic (ONLY if the CSV already exists) ----
+        if output_path.exists():
+            existing = pd.read_csv(output_path)
+            if "lon_lat" in existing.columns:
+                seen_pts = []
+                for s in existing["lon_lat"].astype(str):
+                    s = s.replace('(', '').replace(')', '').replace('POINT', '').replace(' ', ',')
+                    try:
+                        lon, lat = s.split(',')
+                        seen_pts.append((np.float64(lon), np.float64(lat)))
+                    except Exception:
+                        pass
+                red_points = [[p for p in red_points[0] if p not in seen_pts]]
+        # -------------------------------------------------------
+
         for coords in red_points:
-            data = start_grid_capture(driver,coords=coords,zoom=10.5, delay=0
-                                      )
-
+            data = start_grid_capture(driver, coords=coords, zoom=10.5, delay=0)
             if data:
                 print(f"📦 Saved {len(data)} grid squares.")
-                save_to_csv(data, output_path)
+                save_to_csv(data, output_path)  # accepts Path or str
             else:
                 print("⚠️ No data captured.")
-
     finally:
         driver.quit()
 
