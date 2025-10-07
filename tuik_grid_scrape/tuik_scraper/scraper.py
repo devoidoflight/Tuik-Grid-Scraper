@@ -3,6 +3,7 @@ import datetime
 import pandas as pd
 import subprocess
 import pyautogui  
+import numpy as np
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
@@ -79,29 +80,26 @@ def start_grid_capture(driver, coords, zoom=9, delay=3):
 
     all_data = []
     seen_ids = set()
-
-    for i, (lon, lat) in enumerate(coords):
     
-        print(f"📍 Moving to square {i+1}/{len(coords)}: ({lon}, {lat})")
-        print(f'Current time is: {datetime.datetime.now()}')
-        zoom_to_area(driver, lon=lon, lat=lat, distance=zoom)
-        time.sleep(delay)
-        driver.execute_script(CAPTURE_VISIBLE_GRID)
-        data = driver.execute_script("return window.__visibleGrids || [];")
-        new_data = [
-    {**item, 'lon': lon, 'lat': lat}
-    for item in data
-    if item['id'] not in seen_ids
-]
-        all_data.extend(new_data)
+    try:
+        for i, (lon, lat) in enumerate(coords):
+        
+            print(f"📍 Moving to square {i+1}/{len(coords)}: ({lon}, {lat})")
+            print(f'Current time is: {datetime.datetime.now()}')
+            zoom_to_area(driver, lon=lon, lat=lat, distance=zoom)
+            time.sleep(delay)
+            driver.execute_script(CAPTURE_VISIBLE_GRID)
+            data = driver.execute_script("return window.__visibleGrids || [];")
+            new_data = [{**item, 'lon': lon, 'lat': lat} for item in data]
+            all_data.extend(new_data)
 
-        # Prevent duplicates
-        for item in new_data:
-            seen_ids.add(item["id"])
 
-        print(f"✅ Captured {len(new_data)} new grids (Total: {len(all_data)})")
+            print(f"✅ Captured {len(new_data)} grids (Total: {len(all_data)})")
+    except Exception:
+        print("Chrome crashed")
 
-    return all_data
+    finally:
+        return all_data
 
 
 def scrape_tuik(il, output_path=f"{BASE_DIR}/data/tuik_grid_data_tr.csv"):
@@ -118,9 +116,24 @@ def scrape_tuik(il, output_path=f"{BASE_DIR}/data/tuik_grid_data_tr.csv"):
                 features.extend(load_geojson(f'{BASE_DIR}/resources/turkey-admin-level-4.geojson', i))
         polygons = extract_polygons(features)
         red_points = [generate_grid(polygons, 3000)]  # Unpack both
+        seen_ids = pd.read_csv(output_path)
+        
+        # Continue where you left off
+        if Path(output_path):
+            existing_data = pd.read_csv(output_path) 
+            existing_data = existing_data["lon_lat"].to_list()
+            for i in range(len(existing_data)):
+                existing_data[i] = existing_data[i].replace('(', '').replace(')', '').replace('POINT','').replace(' ',',').split(',')
 
+            tupled_data = []
+            for i in existing_data:
+                try:
+                    tupled_data.append((np.float64(i[0]),np.float64(i[1])) )
+                except ValueError:
+                    print(f'Error value:{i}')
+            red_points = [[item for item in red_points[0] if item not in tupled_data]]
         for coords in red_points:
-            data = start_grid_capture(driver,coords=coords,zoom=11, delay=0
+            data = start_grid_capture(driver,coords=coords,zoom=10.5, delay=0
                                       )
 
             if data:
