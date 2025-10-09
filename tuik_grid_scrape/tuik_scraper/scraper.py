@@ -135,7 +135,11 @@ def start_grid_capture(driver, coords, zoom=9, delay=3):
         return all_data
 
 
+<<<<<<< Updated upstream
 def scrape_tuik(il, output_path=f"{BASE_DIR}/data/tuik_grid_data_tr_30.csv",visualize_points = True):
+=======
+def scrape_tuik(il, output_path=f"{BASE_DIR}/data/tuik_grid_data_tr_30.csv"):
+>>>>>>> Stashed changes
     driver = init_driver()
     try:
         hook_map(driver)
@@ -153,10 +157,13 @@ def scrape_tuik(il, output_path=f"{BASE_DIR}/data/tuik_grid_data_tr_30.csv",visu
                 features.extend(load_geojson(f'{BASE_DIR}/resources/turkey-admin-level-4.geojson', city))
         polygons = extract_polygons(features)
         red_points = [generate_grid(polygons, 30000)]  # list[list[(lon, lat)]]
+<<<<<<< Updated upstream
         visualize_scraped_points(polygons,red_points)
 
 
 
+=======
+>>>>>>> Stashed changes
         # ---- resume logic (ONLY if the CSV already exists) ----
         if output_path.exists():
             existing_data = pd.read_csv(output_path,usecols=['lon_lat']) 
