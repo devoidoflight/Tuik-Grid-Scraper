@@ -1,6 +1,7 @@
 import pandas as pd
 import os
 from pathlib import Path
+import matplotlib.pyplot as plt
 
 
 def save_to_csv(data, path):
@@ -78,3 +79,28 @@ def deduplicate_csv(path):
         print("No duplicates found")
     else:
         print(f"🧹 Removed {original_len - len(df)} duplicates — {len(df)} rows remain in {path}")
+
+def visualize_scraped_points(polygons,points):
+    # 3) Visualize
+    fig, ax = plt.subplots()
+    fig.set_figheight(30)
+    fig.set_figwidth(30)
+
+    # draw polygons
+    for poly in polygons:
+        x, y = poly.exterior.xy
+        ax.plot(x, y)
+        for interior in poly.interiors:  # draw holes if any
+            xi, yi = interior.xy
+            ax.plot(xi, yi)
+
+    # draw points
+    if points:
+        xs, ys = zip(*points[0])
+        ax.scatter(xs, ys, s=4)  # small size so it’s readable
+
+    ax.set_aspect('equal', adjustable='box')
+    ax.set_xlabel('Longitude')
+    ax.set_ylabel('Latitude')
+    ax.set_title('Systematic points inside polygon(s)')
+    plt.show()
