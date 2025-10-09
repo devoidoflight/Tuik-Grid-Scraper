@@ -136,7 +136,7 @@ def start_grid_capture(driver, coords, zoom=9, delay=3):
 
 
 
-def scrape_tuik(il, output_path=f"{BASE_DIR}/data/tuik_grid_data_tr_30.csv"):
+def scrape_tuik(il, output_path=f"{BASE_DIR}/data/tuik_grid_data_tr_10km.csv",visualize = True):
     driver = init_driver()
     try:
         hook_map(driver)
@@ -153,9 +153,10 @@ def scrape_tuik(il, output_path=f"{BASE_DIR}/data/tuik_grid_data_tr_30.csv"):
             for city in il:
                 features.extend(load_geojson(f'{BASE_DIR}/resources/turkey-admin-level-4.geojson', city))
         polygons = extract_polygons(features)
-        red_points = [generate_grid(polygons, 30000)]  # list[list[(lon, lat)]]
-        visualize_scraped_points(polygons,red_points)
+        red_points = [generate_grid(polygons, 10000)]  # list[list[(lon, lat)]]
 
+
+            
 
 
         # ---- resume logic (ONLY if the CSV already exists) ----
@@ -178,7 +179,11 @@ def scrape_tuik(il, output_path=f"{BASE_DIR}/data/tuik_grid_data_tr_30.csv"):
             len1 = len(red_points[0])
             red_points = [[item for item in red_points[0] if item not in tupled_data]]
             print(f'rp: {len1}, frp: {len(red_points[0])}')
-        
+            
+        if visualize == True:
+            visualize_scraped_points(polygons,red_points)
+        else:
+            pass
 
         for coords in red_points:
             data = start_grid_capture(driver, coords=coords, zoom=10.5, delay=0)
