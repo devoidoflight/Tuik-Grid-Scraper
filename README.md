@@ -38,10 +38,12 @@ tuik_grid_scrape/
 - Google Chrome installed locally (matching the Selenium-managed chromedriver)
 - Node devtools familiarity: during scraping you must open Chrome DevTools to let the injected script hook into the map instance.
 
-Install Python dependencies:
+Set up an isolated Python environment and install the dependencies:
 
 ```bash
-pip install -r requirements.txt
+python -m venv .venv              # create a virtual environment in the project directory
+source .venv/bin/activate         # activate it (use .venv\Scripts\activate on Windows)
+pip install -r requirements.txt   # install project requirements inside the venv
 ```
 
 > **Tip:** The requirements include optional macOS-specific packages for PyAutoGUI. They are marked with environment markers and will be skipped automatically on Linux/Windows.
@@ -50,10 +52,10 @@ pip install -r requirements.txt
 
 ## Quick Start
 
-1. **Activate your environment**
+1. **Activate your virtualenv** (create one first with `python -m venv .venv` if you skipped the prerequisites step)
    ```bash
    cd tuik_grid_scrape
-   source <your-env>/bin/activate  # optional but recommended
+   source .venv/bin/activate  # use .venv\Scripts\activate on Windows
    ```
 
 2. **Run the scraper for one or more provinces**
