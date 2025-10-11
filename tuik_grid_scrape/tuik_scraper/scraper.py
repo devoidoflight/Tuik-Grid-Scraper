@@ -8,7 +8,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
-from .utils import save_to_csv
+from .utils import save_to_csv,visualize_scraped_points
 from selenium.webdriver.common.by import By
 from pathlib import Path
 
@@ -129,12 +129,14 @@ def start_grid_capture(driver, coords, zoom=9, delay=3):
             print(f"✅ Captured {len(new_data)} grids (Total: {len(all_data)})")
     except Exception:
         print("Chrome crashed")
+        
 
     finally:
         return all_data
 
 
-def scrape_tuik(il, output_path=f"{BASE_DIR}/data/tuik_grid_data_tr.csv"):
+
+def scrape_tuik(il, output_path=f"{BASE_DIR}/data/tuik_grid_data_tr_20km.csv",visualize = True):
     driver = init_driver()
     try:
         hook_map(driver)
@@ -151,22 +153,37 @@ def scrape_tuik(il, output_path=f"{BASE_DIR}/data/tuik_grid_data_tr.csv"):
             for city in il:
                 features.extend(load_geojson(f'{BASE_DIR}/resources/turkey-admin-level-4.geojson', city))
         polygons = extract_polygons(features)
-        red_points = [generate_grid(polygons, 6000)]  # list[list[(lon, lat)]]
+        red_points = [generate_grid(polygons, 5000)]  # list[list[(lon, lat)]]
+
+
+            
+
 
         # ---- resume logic (ONLY if the CSV already exists) ----
         if output_path.exists():
-            existing = pd.read_csv(output_path)
-            if "lon_lat" in existing.columns:
-                seen_pts = []
-                for s in existing["lon_lat"].astype(str):
-                    s = s.replace('(', '').replace(')', '').replace('POINT', '').replace(' ', ',')
-                    try:
-                        lon, lat = s.split(',')
-                        seen_pts.append((np.float64(lon), np.float64(lat)))
-                    except Exception:
-                        pass
-                red_points = [[p for p in red_points[0] if p not in seen_pts]]
-        # -------------------------------------------------------
+            print("Output path exists")
+            existing_data = pd.read_csv(output_path,usecols=['lon_lat']) 
+            existing_data = existing_data["lon_lat"].to_list()
+            existing_data = set(existing_data)
+            existing_data = list(existing_data)
+
+            for i in range(len(existing_data)):
+                existing_data[i] = existing_data[i].replace('(', '').replace(')', '').replace('POINT','').replace(' ',',').split(',')
+
+            tupled_data = []
+            for i in existing_data:
+                try:
+                    tupled_data.append((np.float64(i[0]),np.float64(i[1])) )
+                except ValueError:
+                    print(f'Error value:{i}')
+            len1 = len(red_points[0])
+            red_points = [[item for item in red_points[0] if item not in tupled_data]]
+            print(f'rp: {len1}, frp: {len(red_points[0])}')
+            
+        if visualize == True:
+            visualize_scraped_points(polygons,red_points)
+        else:
+            pass
 
         for coords in red_points:
             data = start_grid_capture(driver, coords=coords, zoom=10.5, delay=0)

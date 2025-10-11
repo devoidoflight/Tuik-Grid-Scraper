@@ -1,19 +1,30 @@
 import pandas as pd
 import os
 from pathlib import Path
+import matplotlib.pyplot as plt
 
+
+import os
+import pandas as pd
+from pathlib import Path
+from datetime import datetime
+
+MAX_BYTES = 2_000_000_000  # ~2 GB per shard, tweak as needed
 
 def save_to_csv(data, path):
     """
-    Appends to CSV if exists; creates otherwise.
-    Deduplicates by 'id' (keeps first occurrence).
+    Fast, low-IO appender:
+      - de-dupes current batch by 'id'
+      - appends to CSV without loading existing file
+      - rotates to new shard if file too big
+      - OPTIONAL: write gzip shards instead of a single CSV
     """
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
 
+    # --- flatten current batch ---
     rows = []
     for item in data:
-        # coords_to_wkt should return WKT string for geometry
         item['coordinates'] = coords_to_wkt(item['coordinates'])
         flat = {
             'id': item['id'],
@@ -21,40 +32,48 @@ def save_to_csv(data, path):
             'geometry': item['coordinates'],
             'lon_lat': f"POINT({item.get('lon')} {item.get('lat')})",
         }
-        # include all properties (make sure it's a dict)
         props = item.get('properties', {})
         if isinstance(props, dict):
             flat.update(props)
         rows.append(flat)
 
-    new_df = pd.DataFrame(rows)
-
-    if not path.exists():
-        new_df.to_csv(path, index=False, encoding='utf-8')
-        print(f"✅ Created and saved {len(new_df)} rows to {path}")
+    if not rows:
+        print("ℹ️ Nothing to write.")
         return
 
-    # Merge/dedupe
-    try:
-        existing_df = pd.read_csv(path, dtype=str)  # keep types stable for concat
-    except Exception as e:
-        print(f"❌ Failed to read existing CSV: {e}")
-        return
+    df = pd.DataFrame(rows)
 
-    # Cast new_df 'id' to str as well to match dtype
-    if 'id' in new_df.columns:
-        new_df['id'] = new_df['id'].astype(str)
+    # de-dupe within the batch (cheap)
+    if 'id' in df.columns:
+        before = len(df)
+        df = df.drop_duplicates(subset='id', keep='first')
+        if len(df) < before:
+            print(f"🧹 Batch de-dup: {before - len(df)} duplicates removed in-memory")
 
-    combined_df = pd.concat([existing_df, new_df], ignore_index=True)
-    before = len(combined_df)
-    combined_df = combined_df.drop_duplicates(subset='id', keep='first')
+    # --- rotation helper ---
+    def ensure_target_file(base_path: Path) -> Path:
+        # rotate if file exists and exceeds limit
+        if base_path.exists() and base_path.stat().st_size >= MAX_BYTES:
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            rotated = base_path.with_name(base_path.stem + f"_{ts}.csv")
+            print(f"🔁 Rotating to {rotated.name} (size limit reached)")
+            return rotated
+        return base_path
 
-    # Keep a stable column order: existing + any new columns at the end
-    cols = list(existing_df.columns) + [c for c in combined_df.columns if c not in existing_df.columns]
-    combined_df = combined_df.reindex(columns=cols)
+    # Choose one of the two output styles:
 
-    combined_df.to_csv(path, index=False, encoding='utf-8')
-    print(f"🧹 Merged, deduplicated ({before - len(combined_df)} removed) → {len(combined_df)} total rows")
+    # (1) Single CSV that appends & rotates:
+    target = ensure_target_file(path)
+    write_header = not target.exists()
+    df.to_csv(target, mode='a', header=write_header, index=False, encoding='utf-8')
+    print(f"💾 Appended {len(df)} rows → {target}")
+
+    # (2) OPTIONAL: Compressed shards (smaller on disk):
+    # shard = path.with_suffix('')  # base name
+    # shard = shard.with_name(f"{path.stem}_{datetime.now():%Y%m%d_%H%M%S}.csv.gz")
+    # df.to_csv(shard, index=False, encoding='utf-8', compression='gzip')
+    # print(f"💾 Wrote {len(df)} rows → {shard} (gzip)")
+
 
 
 
@@ -78,3 +97,29 @@ def deduplicate_csv(path):
         print("No duplicates found")
     else:
         print(f"🧹 Removed {original_len - len(df)} duplicates — {len(df)} rows remain in {path}")
+
+def visualize_scraped_points(polygons,points):
+    # 3) Visualize
+    fig, ax = plt.subplots()
+    fig.set_figheight(30)
+    fig.set_figwidth(30)
+
+    # draw polygons
+    for poly in polygons:
+        x, y = poly.exterior.xy
+        ax.plot(x, y)
+        for interior in poly.interiors:  # draw holes if any
+            xi, yi = interior.xy
+            ax.plot(xi, yi)
+
+    # draw points
+    if points:
+        xs, ys = zip(*points[0])
+        ax.scatter(xs, ys, s=4)  # small size so it’s readable
+
+    ax.set_aspect('equal', adjustable='box')
+    ax.set_xlabel('Longitude')
+    ax.set_ylabel('Latitude')
+    ax.set_title('Systematic points inside polygon(s)')
+    print(f"Total points: {len(points[0])}")
+    plt.show()

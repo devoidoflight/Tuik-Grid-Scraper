@@ -46,12 +46,12 @@ def generate_grid(polygons, aralik):
     for polygon in polygons:
         min_lat = min(polygon.exterior.coords.xy[1]) 
         max_lat = max(polygon.exterior.coords.xy[1])
-        lat_lines = np.arange(min_lat, max_lat, lat_spacing)
+        lat_lines = np.arange(min_lat, max_lat+lat_spacing, lat_spacing)
         for lat in lat_lines:
             min_lon = min(polygon.exterior.coords.xy[0]) 
             max_lon = max(polygon.exterior.coords.xy[0])
             lon_spacing = aralik / (111320 * np.cos(np.radians(lat)))
-            lon_points = np.arange(min_lon, max_lon, lon_spacing)
+            lon_points = np.arange(min_lon, max_lon+lon_spacing, lon_spacing)
             for lon in lon_points:
                 point = Point(lon, lat)
                 if any(polygon.contains(point) for polygon in polygons):
