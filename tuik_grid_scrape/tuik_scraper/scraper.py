@@ -13,7 +13,7 @@ from selenium.webdriver.common.by import By
 from pathlib import Path
 
 
-from .js_injections import MAP_HOOK, CAPTURE_VISIBLE_GRID, CHROMEDRIVER_PATH
+from .js_injections import MAP_HOOK, CAPTURE_VISIBLE_GRID
 from .coordinate_generator import load_geojson, extract_polygons, generate_grid
 
 BASE_DIR = Path.cwd().resolve()
