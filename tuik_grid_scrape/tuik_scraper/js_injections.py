@@ -62,6 +62,3 @@ for (const f of allFeatures) {
 
 console.log(`✅ Captured ${window.__visibleGrids.length} visible grid squares.`);
 """
-
-CHROMEDRIVER_PATH = "/Users/borangoksel/Downloads/chromedriver-mac-arm64/chromedriver"  # your chromedriver path
-
