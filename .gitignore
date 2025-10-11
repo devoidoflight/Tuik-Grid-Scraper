@@ -1,0 +1,6 @@
+venv/
+__pycache__/
+data/
+**/test.ipynb
+tuik_grid_scrape/tuik_scraper/test.ipynb
+tuik_grid_scrape/test.ipynb
