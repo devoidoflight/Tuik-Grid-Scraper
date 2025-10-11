@@ -136,7 +136,7 @@ def start_grid_capture(driver, coords, zoom=9, delay=3):
 
 
 
-def scrape_tuik(il, output_path=f"{BASE_DIR}/data/tuik_grid_data_tr_10km.csv",visualize = True):
+def scrape_tuik(il, output_path=f"{BASE_DIR}/data/tuik_grid_data_tr_20km.csv",visualize = True):
     driver = init_driver()
     try:
         hook_map(driver)
@@ -153,7 +153,7 @@ def scrape_tuik(il, output_path=f"{BASE_DIR}/data/tuik_grid_data_tr_10km.csv",vi
             for city in il:
                 features.extend(load_geojson(f'{BASE_DIR}/resources/turkey-admin-level-4.geojson', city))
         polygons = extract_polygons(features)
-        red_points = [generate_grid(polygons, 10000)]  # list[list[(lon, lat)]]
+        red_points = [generate_grid(polygons, 5000)]  # list[list[(lon, lat)]]
 
 
             
