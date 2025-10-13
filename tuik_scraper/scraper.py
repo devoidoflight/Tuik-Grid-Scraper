@@ -148,12 +148,16 @@ def scrape_tuik(il, output_path=f"{BASE_DIR}/data/tuik_grid_data_tr_20km.csv",vi
         # Load GeoJSON and process data
         if il[0] == 'Türkiye':
             features = load_geojson(f'{BASE_DIR}/resources/turkey-admin-level-2.geojson', il[0])
+            polygons = extract_polygons(features)
+            red_points = [generate_grid(polygons, 20000)]  # list[list[(lon, lat)]]
         else:
             features = []
             for city in il:
                 features.extend(load_geojson(f'{BASE_DIR}/resources/turkey-admin-level-4.geojson', city))
-        polygons = extract_polygons(features)
-        red_points = [generate_grid(polygons, 5000)]  # list[list[(lon, lat)]]
+                polygons = extract_polygons(features)
+                red_points = [generate_grid(polygons, 5000)]  # list[list[(lon, lat)]]
+        
+        
 
 
             
@@ -181,7 +185,7 @@ def scrape_tuik(il, output_path=f"{BASE_DIR}/data/tuik_grid_data_tr_20km.csv",vi
             print(f'rp: {len1}, frp: {len(red_points[0])}')
             
         if visualize == True:
-            visualize_scraped_points(polygons,red_points)
+            visualize_scraped_points(polygons,red_points,il=il)
         else:
             pass
 

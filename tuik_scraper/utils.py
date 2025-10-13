@@ -98,7 +98,7 @@ def deduplicate_csv(path):
     else:
         print(f"🧹 Removed {original_len - len(df)} duplicates — {len(df)} rows remain in {path}")
 
-def visualize_scraped_points(polygons,points):
+def visualize_scraped_points(polygons,points,il):
     # 3) Visualize
     fig, ax = plt.subplots()
     fig.set_figheight(30)
@@ -120,6 +120,6 @@ def visualize_scraped_points(polygons,points):
     ax.set_aspect('equal', adjustable='box')
     ax.set_xlabel('Longitude')
     ax.set_ylabel('Latitude')
-    ax.set_title('Systematic points inside polygon(s)')
+    ax.set_title(f'Systematic points inside {il[0]}')
     print(f"Total points: {len(points[0])}")
     plt.show()

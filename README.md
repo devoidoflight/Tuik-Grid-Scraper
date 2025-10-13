@@ -10,7 +10,7 @@ It combines Selenium-driven browser automation with a systematic coordinate gene
 - **Automated map control** – launches a Chrome window, focuses the TÜİK map, and recenters/zooms to each target coordinate.
 - **Systematic sampling** – generates evenly spaced latitude/longitude pairs inside any selected province ("il") or for the whole country.
 - **In-browser data capture** – injects helper JavaScript to read the `grid_katmani` layer the site draws and extract the grid properties (ID, geometry, statistics, …).
-- **Crash-safe resume** – if the destination CSV already exists, previously scraped grid squares are skipped so you can resume long-running jobs.
+- **Crash-safe resume** – if the destination CSV already exists, previously scraped grid squares are skipped so you can resume long-running jobs. If the chrome crashes, or you close it the program will save the grids that are already captured without an issue. And believe me. Chrome will crash. Just re-run the program
 - **Optional visualisation** – plots the polygons and target points before scraping so you can sanity-check coverage.
 
 ---
@@ -64,7 +64,7 @@ pip install -r requirements.txt   # install project requirements inside the venv
    ```
    You can supply multiple provinces to cover them sequentially:
    ```bash
-   python scripts/run_script.py --il Ankara "İstanbul" İzmir
+   python scripts/run_script.py --il Ankara İstanbul İzmir
    ```
    To scrape the whole of Türkiye (aggregated polygons at admin level 2), pass the literal string `Türkiye`:
    ```bash
@@ -76,8 +76,14 @@ pip install -r requirements.txt   # install project requirements inside the venv
    - When you see the terminal prompt `👉 Please open DevTools...`:
      1. Press `Ctrl+Shift+I` / `Cmd+Option+I` to open DevTools.
      2. Wait for the console message `✅ Hooked map instance`.
-     3. (If the hook message does not appear) set a temporary breakpoint in the minified file at the line containing `queryRenderedFeatures(e.point, { layers: ["grid_katmani"] })`, hover on the map to pause execution, then run `window.__my_map = i.map;` in the console once to expose the Mapbox map object.
-     4. Return to the terminal and press `Enter` to continue.
+     3. Go to sources > tuik_grid_scrape/
+                        ├── static
+                            ├── js
+                                ├── main.8da9294f.chunk.js
+     4. Open the file and search for `var t = i.map.queryRenderedFeatures(e.point, {` 
+     5. Set a  breakpoint at the line containing `var t = i.map.queryRenderedFeatures(e.point, {`, hover on the map to pause execution, go to console and run`window.__my_map = i.map;` 
+     6. Return to the terminal and press `Enter` to continue.
+     7. A matplotlib image will appear to show you which lat-longs are going to be scraped. Close it and the scraping will begin
 
 4. **Let the automation run**
    - Selenium will iterate over every generated coordinate, zoom the map, collect the visible grid squares via the injected `CAPTURE_VISIBLE_GRID` script, and append the results to `data/tuik_grid_data_tr_20km.csv` (or the path you configure).
@@ -121,4 +127,5 @@ Pull requests and issues are welcome. Please describe:
 - Any manual steps you needed that are not covered here.
 - Logs/console output in case of failures.
 
+I can add new features to CLI upon request. You can contact me for any request or question
 Happy scraping! 🗺️
