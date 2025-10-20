@@ -69,6 +69,9 @@ pip install -r requirements.txt   # install project requirements inside the venv
    To scrape the whole of Türkiye (aggregated polygons at admin level 2), pass the literal string `Türkiye`:
    ```bash
    python scripts/run_script.py --il Türkiye
+   ```bash
+   !New! You can specify which your you want to scrape by providing --yyyy argument
+   python scripts/run_script.py --il Türkiye --yyyy 2022
    ```
 
 3. **Hook the map when prompted**
