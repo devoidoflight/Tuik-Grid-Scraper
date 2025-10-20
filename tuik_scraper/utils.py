@@ -62,17 +62,13 @@ def save_to_csv(data, path):
 
     # Choose one of the two output styles:
 
-    # (1) Single CSV that appends & rotates:
+    # Single CSV that appends & rotates:
     target = ensure_target_file(path)
     write_header = not target.exists()
     df.to_csv(target, mode='a', header=write_header, index=False, encoding='utf-8')
     print(f"💾 Appended {len(df)} rows → {target}")
 
-    # (2) OPTIONAL: Compressed shards (smaller on disk):
-    # shard = path.with_suffix('')  # base name
-    # shard = shard.with_name(f"{path.stem}_{datetime.now():%Y%m%d_%H%M%S}.csv.gz")
-    # df.to_csv(shard, index=False, encoding='utf-8', compression='gzip')
-    # print(f"💾 Wrote {len(df)} rows → {shard} (gzip)")
+
 
 
 

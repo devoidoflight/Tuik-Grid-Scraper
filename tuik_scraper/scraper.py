@@ -40,6 +40,7 @@ def init_driver():
 def hook_map(driver):
     driver.get("https://cip.tuik.gov.tr/") # Open the desired website
     time.sleep(5)
+    
     driver.execute_script(MAP_HOOK) # execute map hook script on console
     print("✅ Hook injection sent.")
     print(BASE_DIR)
@@ -53,9 +54,10 @@ def hook_map(driver):
     print("✅ Map object available.")
     click_to_button(driver,button="btn-nuts-grid")
 
-def click_to_button(driver,button):
-    button = driver.find_element(By.ID, button)
+def click_to_button(driver, button, by=By.ID):
+    button = driver.find_element(by, button)
     button.click()
+
 
 
 def zoom_to_area(driver, lon, lat, distance=9):
@@ -97,29 +99,29 @@ def zoom_to_area(driver, lon, lat, distance=9):
         window.scrollTo(0, 0);
     """)
 
-    # (Optional) If you still want a physical click on macOS only:
-    # if platform.system() == "Darwin":
-    #     import pyautogui
-    #     sw, sh = pyautogui.size()
-    #     pyautogui.click(sw // 2, sh // 2)
-
     print(f'🔍 Zoomed to [{lon}, {lat}] at zoom level {distance}')
 
 
-def start_grid_capture(driver, coords, zoom=9, delay=3):
+def start_grid_capture(driver, coords,year, zoom=9, delay=3):
    
     print("🟢 Grid capture starting.")
 
     all_data = []
     seen_ids = set()
-    
+    time.sleep(3)
+
     try:
         for i, (lon, lat) in enumerate(coords):
-        
+            print(i)
             print(f"📍 Moving to square {i+1}/{len(coords)}: ({lon}, {lat})")
             print(f'Current time is: {datetime.datetime.now()}')
             zoom_to_area(driver, lon=lon, lat=lat, distance=zoom)
+            if i ==0:
+                for _ in range((datetime.date.today().year-1)-year):
+                    click_to_button(driver, '//*[@id="map"]/div[5]/div[1]/div/button[1]', By.XPATH)
+                    time.sleep(0.5)
             time.sleep(delay)
+
             driver.execute_script(CAPTURE_VISIBLE_GRID)
             data = driver.execute_script("return window.__visibleGrids || [];")
             new_data = [{**item, 'lon': lon, 'lat': lat} for item in data]
@@ -136,7 +138,7 @@ def start_grid_capture(driver, coords, zoom=9, delay=3):
 
 
 
-def scrape_tuik(il, output_path=f"{BASE_DIR}/data/tuik_grid_data_tr_20km.csv",visualize = True):
+def scrape_tuik(il, output_path=f"{BASE_DIR}/data/tuik_grid_data_istanbul.csv",visualize = True,year = None):
     driver = init_driver()
     try:
         hook_map(driver)
@@ -158,10 +160,6 @@ def scrape_tuik(il, output_path=f"{BASE_DIR}/data/tuik_grid_data_tr_20km.csv",vi
                 red_points = [generate_grid(polygons, 5000)]  # list[list[(lon, lat)]]
         
         
-
-
-            
-
 
         # ---- resume logic (ONLY if the CSV already exists) ----
         if output_path.exists():
@@ -190,7 +188,7 @@ def scrape_tuik(il, output_path=f"{BASE_DIR}/data/tuik_grid_data_tr_20km.csv",vi
             pass
 
         for coords in red_points:
-            data = start_grid_capture(driver, coords=coords, zoom=10.5, delay=0)
+            data = start_grid_capture(driver, coords=coords,year=year, zoom=10.5, delay=0)
             if data:
                 print(f"📦 Saved {len(data)} grid squares.")
                 save_to_csv(data, output_path)  # accepts Path or str
